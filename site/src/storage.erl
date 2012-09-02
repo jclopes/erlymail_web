@@ -1,13 +1,13 @@
 -module(storage).
 
+-include("records.hrl").
+
 -export([
     add_user/6,
     get_user/1,
     delete_user/1,
     create_schema/0
 ]).
-
--record(users, {email, password, smtp_srv, smtp_prt, smtp_usr, smtp_pwd}).
 
 create_schema() ->
     case proplists:lookup(mnesia, application:which_applications()) of
