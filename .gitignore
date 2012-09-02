@@ -1,0 +1,12 @@
+# folders
+
+lib/
+bin/
+erts-*/
+log/
+releases/
+site/ebin/
+
+# files
+
+rebar

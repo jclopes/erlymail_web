@@ -1,0 +1,1 @@
+{"site/src/*", [{outdir, "site/ebin"}, {i, "site/include"}, {i, "lib"}]}.
