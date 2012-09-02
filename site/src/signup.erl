@@ -1,8 +1,9 @@
 %% -*- mode: nitrogen -*-
 -module (signup).
--compile(export_all).
+
 -include_lib("nitrogen_core/include/wf.hrl").
--include("records.hrl").
+
+-compile(export_all).
 
 main() -> #template { file="./site/templates/bare.html" }.
 
@@ -10,9 +11,10 @@ title() -> "Erly-EMAIL signup".
 
 body() ->
     Body = [
+        #flash{},
         #panel { style="margin: 50px 100px;", body=[
-            #span{
-                text="Please inserte your email server access information."
+            #h2{
+                text="Your email and password you want to use."
             },
 
             #p{},
@@ -22,6 +24,9 @@ body() ->
             #label{ text="password" },
             #password{ id=password },
 
+            #h2{
+                text="SMTP email server access information."
+            },
             #p{},
             #label{ text="smtp server" },
             #textbox{ id=smtp_srv },
@@ -72,9 +77,8 @@ event(signupBtnClick) ->
     SmtpSrvPrt = wf:q(smtp_srv_port),
     SmtpUsr = wf:q(smtp_usr),
     SmtpPass = wf:q(smtp_password),
-    storage:add_user(Email, Password, SmtpSrv, SmtpSrvPrt, SmtpUsr, SmtpPass),
-    Res = io_lib:format(
-        "<p>You clicked the button!</p> ~s<br />~w<br />",
-        [Email, Password]
-    ),
-    wf:insert_top(placeholder, Res).
+    {atomic, ok} = storage:add_user(Email, Password, SmtpSrv, SmtpSrvPrt, SmtpUsr, SmtpPass),
+    wf:user(Email),
+    wf:redirect("/emailform")
+    % TODO: Redirect user to user created confirmation page (welcome...)
+.
