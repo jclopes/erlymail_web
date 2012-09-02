@@ -1,8 +1,10 @@
 %% -*- mode: nitrogen -*-
 -module (login).
--compile(export_all).
+
 -include_lib("nitrogen_core/include/wf.hrl").
 -include("records.hrl").
+
+-compile(export_all).
 
 main() -> #template { file="./site/templates/bare.html" }.
 
@@ -23,7 +25,7 @@ body() ->
             #hr{},
 
             #span { body=["Or signup here: ", #link { text="signup", url="/signup" }]}
-            
+
         ]}
     ],
     wf:wire(loginButton, email, #validate {
@@ -58,13 +60,16 @@ event(click) ->
     end
 .
 
-authenticate(Email, "11") ->
-    {error, "wrong email or password"}
-;
 authenticate(Email, Password) ->
     % TODO: validate Email + Password and return user id
-    UserId = 1,
-    {ok, UserId}
+    [User] = storage:get_user(Email),
+    case User#users.password of
+        Password ->
+            {ok, Email}
+        ;
+        _ ->
+            {error, "Fail to authenticate"}
+    end
 .
 
 load_session(UserId) ->
