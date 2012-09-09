@@ -10,10 +10,24 @@ main() -> #template { file="./site/templates/bare.html" }.
 
 title() -> "Schedule email".
 
+init_session() ->
+    State = case wf:session(msg) of
+        undefined ->
+            esmtp_mime:msg()
+        ;
+        M -> M
+    end,
+    wf:session(msg, State),
+    wf:set(sessionState, io_lib:format("~p", [State]))
+.
+
 body() ->
     Body = [
         #panel { style="margin: 50px 100px;", body=[
             #h2 { text="Schedule email" },
+
+            #p{},
+            #span{ text="State: " }, #span{ id=sessionState },
 
             #p{},
             #label{ text="to:" },
@@ -53,6 +67,7 @@ body() ->
             #panel { id=placeholder }
         ]}
     ],
+    init_session(),
     Body
 .
 
@@ -65,6 +80,7 @@ datetime_from_str(Date, Time) ->
 .
 
 start_upload_event(attachmentBtnClick) ->
+    wf:flash("I'm here!!"),
     ok
 .
 
@@ -82,11 +98,24 @@ finish_upload_event(_Tag, FileName, LocalFileData, _Node) ->
         body=wf:f("~s (~p bytes)", [FileName, FileSize]),
         actions=#show { effect=pulsate, options=[{times, 1}] }
     }),
+    NMsg = esmtp_mime:add_attachment_part(wf:session(msg), FileName, Binary),
+    wf:session(msg, NMsg),
     % TODO: store the LocalFileData somewhere to send with the email
     ok
 .
 
+event(updateToBtnClick) ->
+    % TODO: Update the message in session
+    % add address to recipients
+    % add attachment
+    % ...
+    NMsg = wf:session(msg),
+    wf:session(msg, NMsg),
+
+    not_implemented
+;
 event(submitBtnClick) ->
+    % TODO: this shuld just submit the message stored in the session
     To = wf:q(toTextBox),
     Subject = wf:q(subjectTextBox),
     Body = wf:q(bodyTextBox),
@@ -96,10 +125,14 @@ event(submitBtnClick) ->
     [User] = storage:get_user(wf:user()),
     SmtpConn = esmtp:conn(
         "erlymail.com",
-        {User#users.smtp_srv, User#users.smtp_prt},
+        {User#users.smtp_srv, list_to_integer(User#users.smtp_prt)},
         {User#users.smtp_usr, User#users.smtp_pwd}
     ),
-    Message = esmtp_mime:msg(User#users.email, To, Subject, Body),
-    erlymail_scheduler_srv:add(DateTime, SmtpConn, Message),
-    wf:insert_top(placeholder, wf:f("User info: <br />~p", [User]))
+    Msg = wf:session(msg),
+    NMsg1 = esmtp_mime:from(Msg, User#users.email),
+    NMsg2 = esmtp_mime:to(NMsg1, [{To, To}]),
+    NMsg3 = esmtp_mime:subject(NMsg2, Subject),
+    NMsg4 = esmtp_mime:add_text_part(NMsg3, Body),
+    erlymail_scheduler_srv:add(DateTime, SmtpConn, NMsg4),
+    wf:insert_top(placeholder, wf:f("User info: <br />~p", [NMsg4]))
 .
