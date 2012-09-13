@@ -6,7 +6,14 @@
 
 -compile(export_all).
 
-main() -> #template { file="./site/templates/bare.html" }.
+main() ->
+    case wf:user() /= undefined of
+        true -> main_authorized();
+        false -> wf:redirect_to_login("/login")
+    end
+.
+
+main_authorized() -> #template { file="./site/templates/bare.html" }.
 
 title() -> "Schedule email".
 
