@@ -140,7 +140,7 @@ datetime_from_str(Date, Time) ->
     {match, [Year, Month, Day]} = re:run(Date, "(\\d\\d\\d\\d)-(\\d\\d)-(\\d\\d)", [{capture, all_but_first, list}]),
     {match, [Hour, Minute]} = re:run(Time, "(\\d\\d):(\\d\\d)", [{capture, all_but_first, list}]),
     NDate = {list_to_integer(Year), list_to_integer(Month), list_to_integer(Day)},
-    NTime = {list_to_integer(Hour), list_to_integer(Minute)},
+    NTime = {list_to_integer(Hour), list_to_integer(Minute), 0},
     {NDate, NTime}
 .
 
