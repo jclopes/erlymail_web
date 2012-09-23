@@ -18,14 +18,51 @@ main_authorized() -> #template { file="./site/templates/bare.html" }.
 title() -> "Schedule email".
 
 init_session() ->
-    State = case wf:session(msg) of
+    Msg = case wf:session(msg) of
         undefined ->
             esmtp_mime:msg()
         ;
         M -> M
     end,
-    wf:session(msg, State),
-    wf:set(sessionState, io_lib:format("~p", [State]))
+    wf:session(msg, Msg),
+
+    % Update the list of To, Cc and Bcc
+    lists:foreach(
+        fun(Address) ->
+            add_to_panel(toPlaceholder, [
+                #button{
+                    id=delToBtn, text="-", postback={delToBtnClick, Address}
+                },
+                Address
+            ])
+        end,
+        esmtp_mime:to(Msg)
+    ),
+    lists:foreach(
+        fun(Address) ->
+            add_to_panel(ccPlaceholder, [
+                #button{
+                    id=delCcBtn, text="-", postback={delCcBtnClick, Address}
+                },
+                Address
+            ])
+        end,
+        esmtp_mime:cc(Msg)
+    ),
+    lists:foreach(
+        fun(Address) ->
+            add_to_panel(bccPlaceholder, [
+                #button{
+                    id=delBccBtn, text="-", postback={delBccBtnClick, Address}
+                },
+                Address
+            ])
+        end,
+        esmtp_mime:bcc(Msg)
+    ),
+
+    % TODO: delete this line - used for debbug
+    wf:set(sessionState, io_lib:format("~p", [Msg]))
 .
 
 body() ->
@@ -33,20 +70,29 @@ body() ->
         #panel { style="margin: 50px 100px;", body=[
             #h2 { text="Schedule email" },
 
-            #p{},
             #span{ text="State: " }, #span{ id=sessionState },
 
-            #p{},
             #label{ text="to:" },
             #textbox{ id=toTextBox },
+            #button{ id=addToBtn, text="+", postback=addToBtnClick },
+            #panel { id=toPlaceholder },
+
             #label{ text="cc:" },
             #textbox{ id=ccTextBox },
+            #button{ id=addCcBtn, text="+", postback=addCcBtnClick },
+            #panel { id=ccPlaceholder },
+
             #label{ text="bcc:" },
             #textbox{ id=bccTextBox },
+            #button{ id=addBccBtn, text="+", postback=addBccBtnClick },
+            #panel { id=bccPlaceholder },
+
+            #hr{},
             #label{ text="subject:" },
             #textbox{ id=subjectTextBox },
             #label{ text="body:" },
             #textarea{ id=bodyTextBox },
+            #hr{},
             #label{ text="send date (yy-mm-dd):" },
             #datepicker_textbox{ id=dueDateTextBox, options=[
                 {dateFormat, "yy-mm-dd"},
@@ -68,12 +114,24 @@ body() ->
             #upload { tag=attachmentBtnClick, show_button=false },
 
             #br{},
-            #button{ id=submitBtn, text="Submit", postback=submitBtnClick },
+            #button{ id=submitBtn, text="Send e-mail", postback=submitBtnClick },
 
             #p{},
             #panel { id=placeholder }
         ]}
     ],
+    wf:wire(addToBtn, toTextBox, #validate { validators=[
+        #is_required { text="Required." },
+        #is_email { text="Must be a valid email address."}
+    ]}),
+    wf:wire(addCcBtn, ccTextBox, #validate { validators=[
+        #is_required { text="Required." },
+        #is_email { text="Must be a valid email address."}
+    ]}),
+    wf:wire(addBccBtn, bccTextBox, #validate { validators=[
+        #is_required { text="Required." },
+        #is_email { text="Must be a valid email address."}
+    ]}),
     init_session(),
     Body
 .
@@ -99,11 +157,14 @@ finish_upload_event(_Tag, FileName, LocalFileData, _Node) ->
     FileSize = filelib:file_size(LocalFileData),
     {ok, Binary} = file:read_file(LocalFileData),
     file:delete(LocalFileData),
-    wf:insert_bottom(attachmentsBottomCell, #panel {
+    wf:insert_bottom(attachmentsBottomCell, #panel{
         % TODO: add a delete attachment
         % TODO: add line with sum of attachments size
-        body=wf:f("~s (~p bytes)", [FileName, FileSize]),
-        actions=#show { effect=pulsate, options=[{times, 1}] }
+        body=[
+            #button{ id=submitBtn, text="delete", postback=submitBtnClick },
+            #span{text=wf:f("~s (~p bytes)", [FileName, FileSize])}
+        ],
+        actions=#show{ effect=pulsate, options=[{times, 1}] }
     }),
     NMsg = esmtp_mime:add_attachment_part(wf:session(msg), FileName, Binary),
     wf:session(msg, NMsg),
@@ -111,15 +172,72 @@ finish_upload_event(_Tag, FileName, LocalFileData, _Node) ->
     ok
 .
 
-event(updateToBtnClick) ->
-    % TODO: Update the message in session
-    % add address to recipients
-    % add attachment
-    % ...
-    NMsg = wf:session(msg),
-    wf:session(msg, NMsg),
+add_to_panel(Panel, ElementList) ->
+    wf:insert_top(
+        Panel,
+        #panel{
+            body=ElementList,
+            actions=#show{ effect=pulsate, options=[{times, 1}] }
+        }
+    )
+.
 
-    not_implemented
+event(addToBtnClick) ->
+    Address = wf:q(toTextBox),
+    Msg = wf:session(msg),
+    AddressList = esmtp_mime:to(Msg),
+    NMsg = esmtp_mime:to(Msg, [Address|AddressList]),
+    wf:session(msg, NMsg),
+    add_to_panel(toPlaceholder, [
+        #button{
+            id=delToBtn,
+            text="-",
+            postback={delToBtnClick, Address}
+        },
+        Address
+    ])
+;
+event(addCcBtnClick) ->
+    Address = wf:q(ccTextBox),
+    Msg = wf:session(msg),
+    AddressList = esmtp_mime:cc(Msg),
+    NMsg = esmtp_mime:cc(Msg, [Address|AddressList]),
+    wf:session(msg, NMsg),
+    wf:insert_top(
+        ccPlaceholder,
+        #panel{
+            body=[
+                #button{
+                    id=delCcBtn,
+                    text="-",
+                    postback={delCcBtnClick, Address}
+                },
+                Address
+            ],
+            actions=#show{ effect=pulsate, options=[{times, 1}] }
+        }
+    )
+;
+event(addBccBtnClick) ->
+    Address = wf:q(bccTextBox),
+    Msg = wf:session(msg),
+    AddressList = esmtp_mime:bcc(Msg),
+    NMsg = esmtp_mime:bcc(Msg, [Address|AddressList]),
+    wf:session(msg, NMsg),
+    wf:insert_top(
+        bccPlaceholder,
+        #panel{
+            body=[
+                #button{
+                    id=delBccBtn,
+                    text="-",
+                    postback={delBccBtnClick, Address}
+                },
+                Address
+            ],
+            actions=#show{ effect=pulsate, options=[{times, 1}] }
+        }
+    )
 ;
 event(submitBtnClick) ->
     % TODO: this shuld just submit the message stored in the session
