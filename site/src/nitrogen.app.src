@@ -1,7 +1,7 @@
 {application, nitrogen,
  [
-  {description, "My Nitrogen Web Project"},
-  {vsn, "1"},
+  {description, "Web interface to erlymail_scheduler"},
+  {vsn, "1.0.0"},
   {registered, []},
   {applications, [kernel, stdlib]},
   {mod, { nitrogen_app, []}},
