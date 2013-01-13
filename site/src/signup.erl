@@ -41,6 +41,10 @@ body() ->
             #password{ id=smtp_password },
 
             #p{},
+            #label{ text="TLS/SSL" },
+            #checkbox { id=smtp_ssl, text=" required", checked=true },
+
+            #p{},
             #button { id=signupBtn, text="signup", postback=signupBtnClick },
 
             #p{},
@@ -77,7 +81,12 @@ event(signupBtnClick) ->
     SmtpSrvPrt = wf:q(smtp_srv_port),
     SmtpUsr = wf:q(smtp_usr),
     SmtpPass = wf:q(smtp_password),
-    {atomic, ok} = storage:add_user(Email, Password, SmtpSrv, SmtpSrvPrt, SmtpUsr, SmtpPass),
+    SmtpSSL = case wf:q(smtp_ssl) of
+        "on" -> true;
+        _ -> false
+    end,
+    io:format("~p~n~p~n~p~n~p~n~p~n~p~n~p~n", [Email, Password, SmtpSrv, SmtpSrvPrt, SmtpUsr, SmtpPass, SmtpSSL]),
+    {atomic, ok} = storage:add_user(Email, Password, SmtpSrv, SmtpSrvPrt, SmtpUsr, SmtpPass, SmtpSSL),
     wf:user(Email),
     wf:redirect("/emailform")
     % TODO: Redirect user to user created confirmation page (welcome...)

@@ -3,7 +3,7 @@
 -include("records.hrl").
 
 -export([
-    add_user/6,
+    add_user/7,
     get_user/1,
     delete_user/1,
     create_schema/0
@@ -25,14 +25,15 @@ create_schema() ->
     end
 .
 
-add_user(Email, Password, SmtpSrv, SmtpPrt, SmtpUsr, SmtpPwd) ->
+add_user(Email, Password, SmtpSrv, SmtpPrt, SmtpUsr, SmtpPwd, SmtpSSL) ->
     UserRow = #users{
         email=Email,
         password=Password,
         smtp_srv=SmtpSrv,
         smtp_prt=SmtpPrt,
         smtp_usr=SmtpUsr,
-        smtp_pwd=SmtpPwd
+        smtp_pwd=SmtpPwd,
+        smtp_ssl=SmtpSSL
     },
     F = fun() ->
         mnesia:write(UserRow)

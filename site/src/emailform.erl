@@ -101,6 +101,7 @@ body() ->
                 {showAnim, ""},
                 {showOn, "button"}
             ]},
+            % TODO: check if the time field has a valid format
             #label{ text="time (hh:mm):" },
             #textbox{ id=dueTimeTextBox },
             #table { style="width: 100%;", rows=[
@@ -251,6 +252,7 @@ event(submitBtnClick) ->
     SmtpConn = esmtp:conn(
         "erlymail.com",
         {User#users.smtp_srv, list_to_integer(User#users.smtp_prt)},
+        User#users.smtp_ssl,
         {User#users.smtp_usr, User#users.smtp_pwd}
     ),
     Msg = wf:session(msg),

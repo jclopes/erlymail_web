@@ -1,1 +1,1 @@
--record(users, {email, password, smtp_srv, smtp_prt, smtp_usr, smtp_pwd}).
+-record(users, {email, password, smtp_srv, smtp_prt, smtp_usr, smtp_pwd, smtp_ssl}).
