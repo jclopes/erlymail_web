@@ -133,8 +133,26 @@ body() ->
         #is_required { text="Required." },
         #is_email { text="Must be a valid email address."}
     ]}),
+    wf:wire(submitBtn, dueTimeTextBox, #validate { validators=[
+        #is_required { text="Required." },
+        #custom { text="Must be a valid time (ex: 07:35).", tag=dueTimeTextBox, function=fun time_validator/2 }
+    ]}),
     init_session(),
     Body
+.
+
+% TODO: add a date validator
+time_validator(_, TimeStr) ->
+    io:format("WTF:~p~n", [TimeStr]),
+    case re:run(TimeStr, "^\\d\\d:\\d\\d$") of
+        nomatch -> false;
+        {match,[{0,5}]} ->
+            [Hour, Minute] = string:tokens(TimeStr, ":"),
+            case {list_to_integer(Hour), list_to_integer(Minute)} of
+                {H, M} when H < 24, H >= 0, M < 60, M >= 0 -> true;
+                _ -> false
+            end
+    end
 .
 
 datetime_from_str(Date, Time) ->
