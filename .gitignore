@@ -1,12 +1,16 @@
 # folders
-
+Mnesia.*/
 lib/
 bin/
 erts-*/
 log/
 releases/
 site/ebin/
+site/static/
+site/.prototypes/
+doc/
+
 
 # files
-
+.ignore
 rebar
