@@ -15,14 +15,10 @@ body() ->
 inner_body() ->
     [
         #h1 { text="Welcome to Erly-EMAIL" },
-        #label{ text="TODO:" },
+        #label{ text="BETA version" },
         #p{},
         "
-        rebar bin is broken on OSX.<br />
-        'nitrogen_core/validators/validator_is_email.erl' is broken regexp.
-        remove the underscore conversion to sub-folders. (nitrogen_core/handlers/router)<br />
-        improve the project compilation.<br />
-        make it possible to have more than 1 nitrogen site on the same machine.<br />
+        This is a test version. Use only data that can be made public and/or lost within this site.
         ",
         #p{},
         #link { text="login", url="/login" },
@@ -30,8 +26,7 @@ inner_body() ->
         #link { text="signup", url="/signup" }
     ].
 
-event(click) ->
-    wf:replace(button, #panel {
-        body="You clicked the button!",
-        actions=#effect { effect=highlight }
-    }).
+event(_) ->
+    % nothing
+    undefined
+.

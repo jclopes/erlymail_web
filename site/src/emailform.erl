@@ -30,10 +30,12 @@ init_session() ->
     lists:foreach(
         fun(Address) ->
             add_to_panel(toPlaceholder, [
-                #button{
-                    id=delToBtn, text="-", postback={delToBtnClick, Address}
-                },
-                Address
+                #span{ id=toAddress, body=[
+                    #link{
+                        text="[del]", postback={delToBtnClick, toAddress, Address}
+                    },
+                    #span{ html_encode=true, text=Address }
+                ]}
             ])
         end,
         esmtp_mime:to(Msg)
@@ -41,10 +43,12 @@ init_session() ->
     lists:foreach(
         fun(Address) ->
             add_to_panel(ccPlaceholder, [
-                #button{
-                    id=delCcBtn, text="-", postback={delCcBtnClick, Address}
-                },
-                Address
+                #span{ id=ccAddress, body=[
+                    #link{
+                        text="[del]", postback={delCcBtnClick, ccAddress, Address}
+                    },
+                    #span{ html_encode=true, text=Address }
+                ]}
             ])
         end,
         esmtp_mime:cc(Msg)
@@ -52,98 +56,125 @@ init_session() ->
     lists:foreach(
         fun(Address) ->
             add_to_panel(bccPlaceholder, [
-                #button{
-                    id=delBccBtn, text="-", postback={delBccBtnClick, Address}
-                },
-                Address
+                #span{ id=bccAddress, body=[
+                    #link{
+                        text="[del]", postback={delBccBtnClick, bccAddress, Address}
+                    },
+                    #span{ html_encode=true, text=Address }
+                ]}
             ])
         end,
         esmtp_mime:bcc(Msg)
     ),
+    lists:foreach(
+        fun({FileName, Data}) ->
+            FileSize = length(Data),
+            add_to_panel(attachmentsBottomCell, [
+                #span{ id=attchFile, body=[
+                    #link{
+                        text="[del]", postback={delAttachmentBtnClick, attchFile, FileName}
+                    },
+                    #span{ html_encode=true, text=wf:f("~s (~p bytes)", [FileName, FileSize]) }
+                ]}
+            ])
+        end,
+        esmtp_mime:attachments(Msg)
+    ),
+
+    case wf:session(submitedMsg) of
+        undefined -> undefined;
+        Text when is_list(Text) ->
+            wf:flash(Text),
+            wf:session(submitedMsg, undefined)
+    end,
 
     % TODO: delete this line - used for debbug
-    wf:set(sessionState, io_lib:format("~p", [Msg]))
+    wf:replace(sessionState, #span{ id=sessionState, html_encode=true, text=io_lib:format("~p", [Msg]) })
 .
 
 body() ->
     Body = [
-        #panel { style="margin: 50px 100px;", body=[
+        #flash{},
+        #panel { style="margin: 50px 100px;",   body=[
             #h2 { text="Schedule email" },
 
-            #span{ text="State: " }, #span{ id=sessionState },
+%            #span{ text="State: ", body=[ #span{ id=sessionState } ]},
 
+            #hr{},
             #label{ text="to:" },
-            #textbox{ id=toTextBox },
-            #button{ id=addToBtn, text="+", postback=addToBtnClick },
+            #inplace_textbox{ id=toInplaceTextBox, tag=toInplaceTextBox, text="add address",
+                validators=[
+                    #is_required { text="Required." },
+                    #is_email { text="Must be a valid email address."}
+                ]
+            },
             #panel { id=toPlaceholder },
+            #hr{},
 
             #label{ text="cc:" },
-            #textbox{ id=ccTextBox },
-            #button{ id=addCcBtn, text="+", postback=addCcBtnClick },
+            #inplace_textbox{ id=ccInplaceTextBox, tag=ccInplaceTextBox, text="add address",
+                validators=[
+                    #is_required { text="Required." },
+                    #is_email { text="Must be a valid email address."}
+                ]
+            },
             #panel { id=ccPlaceholder },
+            #hr{},
 
             #label{ text="bcc:" },
-            #textbox{ id=bccTextBox },
-            #button{ id=addBccBtn, text="+", postback=addBccBtnClick },
+            #inplace_textbox{ id=bccInplaceTextBox, tag=bccInplaceTextBox, text="add address",
+                validators=[
+                    #is_required { text="Required." },
+                    #is_email { text="Must be a valid email address."}
+                ]
+            },
             #panel { id=bccPlaceholder },
 
             #hr{},
-            #label{ text="subject:" },
-            #textbox{ id=subjectTextBox },
-            #label{ text="body:" },
-            #textarea{ id=bodyTextBox },
+            #inplace_textbox{ id=subjectTextBox, tag=subjectInplaceTextBox, text="add subject" },
+            #textarea{ id=bodyTextBox, placeholder="body" },
             #hr{},
-            #label{ text="send date (yy-mm-dd):" },
-            #datepicker_textbox{ id=dueDateTextBox, options=[
+            #label{ text="send day and hour:"},
+            % TODO: add timezone selector
+            #datepicker_textbox{ id=dueDateTextBox, style="width: 140px;", text="set date (yy-mm-dd)", options=[
                 {dateFormat, "yy-mm-dd"},
                 {gotoCurrent, true},
                 {minDate, "+0"},
                 {showAnim, ""},
-                {showOn, "button"}
+                {showOn, "focus"}
             ]},
             % TODO: check if the time field has a valid format
-            #label{ text="time (hh:mm):" },
-            #textbox{ id=dueTimeTextBox },
+            #inplace_textbox{ id=dueTimeTextBox, tag=dueTimeTextBoxTag, text="set time (hh:mm)",
+                validators=[
+                    #is_required { text="Required." },
+                    #custom { text="Must be a valid time (ex: 07:35).", tag=dueTimeTextBoxTag, function=fun time_validator/2 }
+                ]
+            },
+            #hr{},
+
             #table { style="width: 100%;", rows=[
                 #tablerow { cells=[
-                    #tableheader { style="width: 33%;", text="attachments" }
+                    #tableheader { style="width: 33%;", text="attachments:" }
                 ]},
                 #tablerow { cells=[
                     #tablecell { id=attachmentsBottomCell }
                 ]}
             ]},
-            #upload { tag=attachmentBtnClick, show_button=false },
+            #upload { tag=attachmentBtnClick, show_button=false, file_text="remove this button", droppable=true, droppable_text="drop files here..." },
 
             #br{},
             #button{ id=submitBtn, text="Send e-mail", postback=submitBtnClick },
 
             #p{},
-            #panel { id=placeholder }
+            #panel { id=placeholder, html_encode=true }
         ]}
     ],
-    wf:wire(addToBtn, toTextBox, #validate { validators=[
-        #is_required { text="Required." },
-        #is_email { text="Must be a valid email address."}
-    ]}),
-    wf:wire(addCcBtn, ccTextBox, #validate { validators=[
-        #is_required { text="Required." },
-        #is_email { text="Must be a valid email address."}
-    ]}),
-    wf:wire(addBccBtn, bccTextBox, #validate { validators=[
-        #is_required { text="Required." },
-        #is_email { text="Must be a valid email address."}
-    ]}),
-    wf:wire(submitBtn, dueTimeTextBox, #validate { validators=[
-        #is_required { text="Required." },
-        #custom { text="Must be a valid time (ex: 07:35).", tag=dueTimeTextBox, function=fun time_validator/2 }
-    ]}),
     init_session(),
     Body
 .
 
 % TODO: add a date validator
 time_validator(_, TimeStr) ->
-    io:format("WTF:~p~n", [TimeStr]),
     case re:run(TimeStr, "^\\d\\d:\\d\\d$") of
         nomatch -> false;
         {match,[{0,5}]} ->
@@ -179,13 +210,17 @@ finish_upload_event(_Tag, FileName, LocalFileData, _Node) ->
     wf:insert_bottom(attachmentsBottomCell, #panel{
         % TODO: add a delete attachment
         % TODO: add line with sum of attachments size
+        % TODO: FileName can match multiple files, add extra info to know what to delete
         body=[
-            #button{ id=submitBtn, text="delete", postback=submitBtnClick },
-            #span{text=wf:f("~s (~p bytes)", [FileName, FileSize])}
+            #span{ id=attchFile, body=[
+                #link{ text="[del]", postback={delAttachmentBtnClick, attchFile, FileName}},
+                #span{text=wf:f("~s (~p bytes)", [FileName, FileSize])}
+            ]}
         ],
         actions=#show{ effect=pulsate, options=[{times, 1}] }
     }),
-    NMsg = esmtp_mime:add_attachment_part(wf:session(msg), FileName, Binary),
+    Msg = wf:session(msg),
+    NMsg = esmtp_mime:add_attachment_part(Msg, FileName, Binary),
     wf:session(msg, NMsg),
     % TODO: store the LocalFileData somewhere to send with the email
     ok
@@ -201,70 +236,109 @@ add_to_panel(Panel, ElementList) ->
     )
 .
 
-event(addToBtnClick) ->
-    Address = wf:q(toTextBox),
+inplace_textbox_event(toInplaceTextBox, Address) ->
     Msg = wf:session(msg),
     AddressList = esmtp_mime:to(Msg),
     NMsg = esmtp_mime:to(Msg, [Address|AddressList]),
+    EncAddress = hd(esmtp_mime:to(NMsg)),
     wf:session(msg, NMsg),
     add_to_panel(toPlaceholder, [
-        #button{
-            id=delToBtn,
-            text="-",
-            postback={delToBtnClick, Address}
-        },
-        Address
-    ])
+        #span{ id=toAddress, body=[
+            #link{
+                text="[del]",
+                postback={delToBtnClick, toAddress, EncAddress}
+            },
+            #span{ html_encode=true, text=EncAddress }
+        ]}
+    ]),
+    "add address"
 ;
-event(addCcBtnClick) ->
-    Address = wf:q(ccTextBox),
+inplace_textbox_event(ccInplaceTextBox, Address) ->
     Msg = wf:session(msg),
     AddressList = esmtp_mime:cc(Msg),
     NMsg = esmtp_mime:cc(Msg, [Address|AddressList]),
+    EncAddress = hd(esmtp_mime:cc(NMsg)),
     wf:session(msg, NMsg),
-    wf:insert_top(
-        ccPlaceholder,
-        #panel{
-            body=[
-                #button{
-                    id=delCcBtn,
-                    text="-",
-                    postback={delCcBtnClick, Address}
-                },
-                Address
-            ],
-            actions=#show{ effect=pulsate, options=[{times, 1}] }
-        }
-    )
+    add_to_panel(ccPlaceholder, [
+        #span{ id=ccAddress, body=[
+            #link{
+                text="[del]",
+                postback={delCcBtnClick, ccAddress, EncAddress}
+            },
+            #span{ html_encode=true, text=EncAddress }
+        ]}
+    ]),
+    "add address"
 ;
-event(addBccBtnClick) ->
-    Address = wf:q(bccTextBox),
+inplace_textbox_event(bccInplaceTextBox, Address) ->
     Msg = wf:session(msg),
     AddressList = esmtp_mime:bcc(Msg),
     NMsg = esmtp_mime:bcc(Msg, [Address|AddressList]),
+    EncAddress = hd(esmtp_mime:bcc(NMsg)),
     wf:session(msg, NMsg),
-    wf:insert_top(
-        bccPlaceholder,
-        #panel{
-            body=[
-                #button{
-                    id=delBccBtn,
-                    text="-",
-                    postback={delBccBtnClick, Address}
-                },
-                Address
-            ],
-            actions=#show{ effect=pulsate, options=[{times, 1}] }
-        }
-    )
+    add_to_panel(bccPlaceholder, [
+        #span{ id=bccAddress, body=[
+            #link{
+                text="[del]",
+                postback={delBccBtnClick, bccAddress, EncAddress}
+            },
+            #span{ html_encode=true, text=EncAddress }
+        ]}
+    ]),
+    "add address"
+;
+inplace_textbox_event(subjectInplaceTextBox, Value) ->
+    Msg = wf:session(msg),
+    NMsg = esmtp_mime:subject(Msg, Value),
+    wf:session(msg, NMsg),
+    Value
+;
+inplace_textbox_event(dueTimeTextBoxTag, Value) ->
+    % TODO: verify that Value is a proper timestamp
+    Time = Value,
+    wf:session(dueTime, Time),
+    io:format("dueTime: ~p~n", [Time]),
+    Value
+;
+inplace_textbox_event(_, Value) ->
+    Value
+.
+
+event({delToBtnClick, toAddress, Address}) ->
+    Msg = wf:session(msg),
+    AddressList = esmtp_mime:to(Msg),
+    NAddressList = lists:delete(Address, AddressList),
+    NMsg = esmtp_mime:to(Msg, NAddressList),
+    wf:session(msg, NMsg),
+    wf:remove(toAddress)
+;
+event({delCcBtnClick, ccAddress, Address}) ->
+    Msg = wf:session(msg),
+    AddressList = esmtp_mime:cc(Msg),
+    NAddressList = lists:delete(Address, AddressList),
+    NMsg = esmtp_mime:cc(Msg, NAddressList),
+    wf:session(msg, NMsg),
+    wf:remove(ccAddress)
+;
+event({delBccBtnClick, bccAddress, Address}) ->
+    Msg = wf:session(msg),
+    AddressList = esmtp_mime:bcc(Msg),
+    NAddressList = lists:delete(Address, AddressList),
+    NMsg = esmtp_mime:bcc(Msg, NAddressList),
+    wf:session(msg, NMsg),
+    wf:remove(bccAddress)
+;
+event({delAttachmentBtnClick, attchFile, FileName}) ->
+    Msg = wf:session(msg),
+    NMsg = esmtp_mime:del_attachment_part(Msg, FileName),
+    wf:session(msg, NMsg),
+    wf:remove(attchFile)
 ;
 event(submitBtnClick) ->
     % TODO: this shuld just submit the message stored in the session
-    To = wf:q(toTextBox),
-    Subject = wf:q(subjectTextBox),
-    Body = wf:q(bodyTextBox),
+    BodyText = wf:q(bodyTextBox),
     Date = wf:q(dueDateTextBox),
-    Time = wf:q(dueTimeTextBox),
+    Time = wf:session(dueTime),
     DateTime = datetime_from_str(Date, Time),
     [User] = storage:get_user(wf:user()),
     SmtpConn = esmtp:conn(
@@ -274,10 +348,15 @@ event(submitBtnClick) ->
         {User#users.smtp_usr, User#users.smtp_pwd}
     ),
     Msg = wf:session(msg),
-    NMsg1 = esmtp_mime:from(Msg, User#users.email),
-    NMsg2 = esmtp_mime:to(NMsg1, [{To, To}]),
-    NMsg3 = esmtp_mime:subject(NMsg2, Subject),
-    NMsg4 = esmtp_mime:add_text_part(NMsg3, Body),
-    erlymail_scheduler_srv:add(DateTime, SmtpConn, NMsg4),
-    wf:insert_top(placeholder, wf:f("User info: <br />~p", [NMsg4]))
+    NMsg1 = esmtp_mime:add_text_part(Msg, BodyText),
+    NMsg2 = esmtp_mime:from(NMsg1, User#users.email),
+    erlymail_scheduler_srv:add(DateTime, SmtpConn, NMsg2),
+    reset_form("message submited"),
+    wf:redirect("/emailform")
+.
+
+reset_form(SubmitedMsg) ->
+    wf:session(msg, esmtp_mime:msg()),
+    wf:session(dueTime, undefined),
+    wf:session(submitedMsg, SubmitedMsg)
 .
