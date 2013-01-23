@@ -16,9 +16,9 @@ body() ->
         #panel { style="margin: 50px 100px;", body=[
             #span { text="Please enter your email address and password.", body=[
                 #label{ text="email" },
-                #textbox{ id=email },
+                #textbox{ id=email, next=password },
                 #label{ text="password" },
-                #password{ id=password },
+                #password{ id=password, next=loginButton },
                 #br{},
                 #button { id=loginButton, text="login", postback=click }
             ]},
@@ -74,11 +74,15 @@ authenticate(Email, Password) ->
 
 load_session(UserId) ->
     % TODO: load user info from the DB
-    Session = [
-        { email, "zunbid@gmail.com" },
-        { password, "password" },
-        { smtp_srv, "smtp.gmail.com" },
-        { smtp_usr, "zunbid@gmail.com" },
-        { smtp_password, "pjharvey" }
+    [User] = storage:get_user(UserId),
+
+    % Session =
+    [
+        { email, User#users.email },
+        { smtp_srv, User#users.smtp_srv },
+        { smtp_prt, User#users.smtp_prt },
+        { smtp_usr, User#users.smtp_usr },
+        { smtp_pwd, User#users.smtp_pwd },
+        { smtp_ssl, User#users.smtp_ssl }
     ]
 .
