@@ -134,7 +134,7 @@ body() ->
             #inplace_textbox{ id=subjectTextBox, tag=subjectInplaceTextBox, text="add subject" },
             #textarea{ id=bodyTextBox, placeholder="body" },
             #hr{},
-            #label{ text="send day and hour:"},
+            #label{ text="deliver day and hour:"},
             % TODO: add timezone selector
             #datepicker_textbox{ id=dueDateTextBox, style="width: 140px;", text="set date (yy-mm-dd)", options=[
                 {dateFormat, "yy-mm-dd"},
@@ -150,6 +150,36 @@ body() ->
                     #custom { text="Must be a valid time (ex: 07:35).", tag=dueTimeTextBoxTag, function=fun time_validator/2 }
                 ]
             },
+            #label{ text="timezone:"},
+            #dropdown { id=timezoneDropDown, value="+1", options=[
+                #option { text="UTC-12", value="-12" },
+                #option { text="UTC-11", value="-11" },
+                #option { text="UTC-10", value="-10" },
+                #option { text="UTC-9", value="-9" },
+                #option { text="UTC-8", value="-8" },
+                #option { text="UTC-7", value="-7" },
+                #option { text="UTC-6", value="-6" },
+                #option { text="UTC-5", value="-5" },
+                #option { text="UTC-4", value="-4" },
+                #option { text="UTC-3", value="-3" },
+                #option { text="UTC-2", value="-2" },
+                #option { text="UTC-1", value="-1" },
+                #option { text="UTC+0", value="+0" },
+                #option { text="UTC+1", value="+1" },
+                #option { text="UTC+2", value="+2" },
+                #option { text="UTC+3", value="+3" },
+                #option { text="UTC+4", value="+4" },
+                #option { text="UTC+5", value="+5" },
+                #option { text="UTC+6", value="+6" },
+                #option { text="UTC+7", value="+7" },
+                #option { text="UTC+8", value="+8" },
+                #option { text="UTC+9", value="+9" },
+                #option { text="UTC+10", value="+10" },
+                #option { text="UTC+11", value="+11" },
+                #option { text="UTC+12", value="+12" },
+                #option { text="UTC+13", value="+13" },
+                #option { text="UTC+14", value="+14" }
+                ]},
             #hr{},
 
             #table { style="width: 100%;", rows=[
@@ -186,12 +216,14 @@ time_validator(_, TimeStr) ->
     end
 .
 
-datetime_from_str(Date, Time) ->
+datetime_from_str(Date, Time, Timezone) ->
     {match, [Year, Month, Day]} = re:run(Date, "(\\d\\d\\d\\d)-(\\d\\d)-(\\d\\d)", [{capture, all_but_first, list}]),
     {match, [Hour, Minute]} = re:run(Time, "(\\d\\d):(\\d\\d)", [{capture, all_but_first, list}]),
+    NTimezoneSeconds = list_to_integer(Timezone) * 3600,
     NDate = {list_to_integer(Year), list_to_integer(Month), list_to_integer(Day)},
     NTime = {list_to_integer(Hour), list_to_integer(Minute), 0},
-    {NDate, NTime}
+    GS = calendar:datetime_to_gregorian_seconds({NDate, NTime}) - NTimezoneSeconds,
+    calendar:gregorian_seconds_to_datetime(GS)
 .
 
 start_upload_event(attachmentBtnClick) ->
@@ -339,7 +371,8 @@ event(submitBtnClick) ->
     BodyText = wf:q(bodyTextBox),
     Date = wf:q(dueDateTextBox),
     Time = wf:session(dueTime),
-    DateTime = datetime_from_str(Date, Time),
+    Timezone = wf:q(timezoneDropDown),
+    DateTime = datetime_from_str(Date, Time, Timezone),
     [User] = storage:get_user(wf:user()),
     SmtpConn = esmtp:conn(
         "erlymail.com",
